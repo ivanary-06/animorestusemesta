@@ -1,561 +1,764 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CCTV Maintenance & Warranty Tracker</title>
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1c2029">
+  <title>CCTV Maintenance & Warranty Tracker</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- LOGIN -->
 <div id="loginScreen" class="login-screen">
-    <div class="login-box">
-        <h1>CCTV MAINTENANCE</h1>
-        <p>Maintenance & Warranty Tracker</p>
-
-        <form id="loginForm">
-            <input type="text" id="username" placeholder="Username" required>
-            <input type="password" id="password" placeholder="Password" required>
-            <button type="submit">LOGIN</button>
-            <p id="loginError"></p>
-        </form>
-    </div>
+  <div class="login-box">
+    <h1>CCTV MAINTENANCE</h1>
+    <p>Maintenance & Warranty Tracker</p>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" autocomplete="username" required>
+      <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+      <button type="submit" id="loginButton">LOGIN</button>
+      <p id="loginError" class="message" role="alert"></p>
+    </form>
+  </div>
 </div>
 
-<!-- MAIN APPLICATION -->
 <div id="app" class="hidden">
-    <header>
-        <h2>CCTV MAINTENANCE & WARRANTY TRACKER</h2>
-        <div>
-            <span id="currentUser"></span>
-            <button onclick="logout()">Logout</button>
-        </div>
-    </header>
+  <header>
+    <h2>CCTV MAINTENANCE &amp; WARRANTY TRACKER</h2>
+    <div class="header-actions">
+      <span id="currentUser"></span>
+      <button id="logoutButton" type="button">Logout</button>
+    </div>
+  </header>
 
-    <main>
+  <main>
+    <div class="page-heading">
+      <div>
         <h2>Dashboard</h2>
+        <p class="muted">Camera maintenance records and warranty tracking</p>
+      </div>
+      <span id="connectionStatus" class="connection-status">Connecting...</span>
+    </div>
 
-        <div class="stats">
-            <div class="stat-card">
-                <span>Total Camera</span>
-                <h2 id="totalCamera">0</h2>
-            </div>
+    <div class="stats">
+      <div class="stat-card">
+        <span>Total Camera</span>
+        <h2 id="totalCamera">0</h2>
+      </div>
+      <div class="stat-card">
+        <span>Damaged</span>
+        <h2 id="damagedCamera">0</h2>
+      </div>
+      <div class="stat-card">
+        <span>Warranty Claim</span>
+        <h2 id="claimCamera">0</h2>
+      </div>
+      <div class="stat-card">
+        <span>Installed</span>
+        <h2 id="installedCamera">0</h2>
+      </div>
+    </div>
 
-            <div class="stat-card">
-                <span>Damaged</span>
-                <h2 id="damagedCamera">0</h2>
-            </div>
-
-            <div class="stat-card">
-                <span>Warranty Claim</span>
-                <h2 id="claimCamera">0</h2>
-            </div>
-
-            <div class="stat-card">
-                <span>Installed</span>
-                <h2 id="installedCamera">0</h2>
-            </div>
+    <section class="panel">
+      <div class="toolbar">
+        <div>
+          <h3>Camera Records</h3>
+          <p class="muted small">Changes are synchronized across signed-in devices.</p>
         </div>
+        <button id="addButton" type="button">+ Add Camera</button>
+      </div>
 
-        <section class="panel">
-            <div class="toolbar">
-                <h3>Camera Records</h3>
-                <button id="addButton" onclick="openForm()">+ Add Camera</button>
-            </div>
+      <input type="text" id="search" placeholder="Search serial number, brand, damage...">
 
-            <input
-                type="text"
-                id="search"
-                placeholder="Search serial number, brand, damage..."
-                oninput="renderTable()"
-            >
-
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>SN</th>
-                            <th>Brand</th>
-                            <th>Damage</th>
-                            <th>Warranty Claim Date</th>
-                            <th>Return Received Date</th>
-                            <th>Received By</th>
-                            <th>Camera Status</th>
-                            <th>Installed At</th>
-                            <th>Evidence</th>
-                            <th id="actionHeader">Action</th>
-                        </tr>
-                    </thead>
-
-                    <tbody id="cameraTable"></tbody>
-                </table>
-            </div>
-        </section>
-    </main>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>No</th>
+              <th>SN</th>
+              <th>Brand</th>
+              <th>Damage</th>
+              <th>Warranty Claim Date</th>
+              <th>Return Received Date</th>
+              <th>Received By</th>
+              <th>Camera Status</th>
+              <th>Installed At</th>
+              <th>Evidence</th>
+              <th id="actionHeader">Action</th>
+            </tr>
+          </thead>
+          <tbody id="cameraTable">
+            <tr>
+              <td colspan="11" class="empty-state">Loading records...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 </div>
 
-<!-- ADD / EDIT FORM -->
 <div id="formModal" class="modal hidden">
-    <div class="modal-content">
-        <h2 id="formTitle">Add Camera</h2>
+  <div class="modal-content">
+    <h2 id="formTitle">Add Camera</h2>
 
-        <form id="cameraForm">
-            <input type="hidden" id="editId">
+    <form id="cameraForm">
+      <input type="hidden" id="editId">
 
-            <label>Serial Number</label>
-            <input id="sn" required>
+      <label for="sn">Serial Number</label>
+      <input id="sn" required maxlength="120">
 
-            <label>Brand</label>
-            <input id="brand" required>
+      <label for="brand">Brand</label>
+      <input id="brand" required maxlength="100">
 
-            <label>Damage</label>
-            <textarea id="damage" required></textarea>
+      <label for="damage">Damage</label>
+      <textarea id="damage" required rows="3"></textarea>
 
-            <label>Warranty Claim Date</label>
-            <input type="date" id="claimDate">
+      <label for="claimDate">Warranty Claim Date</label>
+      <input type="date" id="claimDate">
 
-            <label>Return Received Date</label>
-            <input type="date" id="receivedDate">
+      <label for="receivedDate">Return Received Date</label>
+      <input type="date" id="receivedDate">
 
-            <label>Received By</label>
-            <input id="receivedBy">
+      <label for="receivedBy">Received By</label>
+      <input id="receivedBy" maxlength="120">
 
-            <label>Camera Status</label>
-            <select id="status">
-                <option>DAMAGED</option>
-                <option>CLAIM WARRANTY</option>
-                <option>WAITING FOR REPLACEMENT</option>
-                <option>RECEIVED</option>
-                <option>READY TO INSTALL</option>
-                <option>INSTALLED</option>
-                <option>NOT INSTALLED</option>
-            </select>
+      <label for="status">Camera Status</label>
+      <select id="status">
+        <option>DAMAGED</option>
+        <option>CLAIM WARRANTY</option>
+        <option>WAITING FOR REPLACEMENT</option>
+        <option>RECEIVED</option>
+        <option>READY TO INSTALL</option>
+        <option>INSTALLED</option>
+        <option>NOT INSTALLED</option>
+      </select>
 
-            <label>Installed At</label>
-            <input id="location" placeholder="Example: Villa 17">
+      <label for="location">Installed At</label>
+      <input id="location" placeholder="Example: Villa 17" maxlength="180">
 
-            <label>Upload Evidence</label>
-            <input
-                type="file"
-                id="evidence"
-                accept=".jpg,.jpeg,.png,.pdf"
-                multiple
-            >
+      <label>Evidence</label>
+      <p class="muted small">
+        Evidence upload is temporarily unavailable on the free Firebase setup.
+        Camera records will still sync across devices.
+      </p>
 
-            <div id="oldEvidence"></div>
+      <div id="oldEvidence" class="existing-files"></div>
 
-            <div class="form-buttons">
-                <button type="button" onclick="closeForm()" class="cancel">
-                    Cancel
-                </button>
-                <button type="submit">Save Record</button>
-            </div>
-        </form>
-    </div>
+      <div class="form-buttons">
+        <button type="button" id="cancelFormButton" class="cancel">Cancel</button>
+        <button type="submit" id="saveButton">Save Record</button>
+      </div>
+    </form>
+  </div>
 </div>
 
-<!-- EVIDENCE PREVIEW -->
-<div id="evidenceModal" class="modal hidden" onclick="closeEvidencePreview(event)">
-    <div class="modal-content evidence-preview-content">
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 
-        <div class="evidence-preview-header">
-            <h2 id="evidencePreviewTitle">Evidence Preview</h2>
-            <button
-                type="button"
-                class="preview-close"
-                onclick="closeEvidencePreview()"
-            >&times;</button>
-        </div>
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
 
-        <img
-            id="evidenceImagePreview"
-            class="evidence-image-preview hidden"
-            alt="Evidence preview"
-        >
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-        <iframe
-            id="evidencePdfPreview"
-            class="evidence-pdf-preview hidden"
-            title="PDF evidence preview"
-        ></iframe>
-
-    </div>
-</div>
-
-<script>
-
-// USER ACCOUNTS
-const users = {
-    ARS: {
-        password: "4rsit@2025",
-        role: "admin"
-    },
-
-    COMOCANGGU: {
-        password: "comostaff",
-        role: "viewer"
-    }
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDO1S5N40UsxreY5bOrBzf8X5FNgk6sjDg",
+  authDomain: "cctv-maintenance-tracker.firebaseapp.com",
+  projectId: "cctv-maintenance-tracker",
+  storageBucket: "cctv-maintenance-tracker.firebasestorage.app",
+  messagingSenderId: "200269674985",
+  appId: "1:200269674985:web:1825cee18b251b65b9f378",
+  measurementId: "G-YFSHFHX9MQ"
 };
 
+/* HTML ELEMENTS */
+const loginScreen = document.getElementById("loginScreen");
+const appScreen = document.getElementById("app");
+const loginError = document.getElementById("loginError");
+const loginButton = document.getElementById("loginButton");
+const cameraTable = document.getElementById("cameraTable");
+const formModal = document.getElementById("formModal");
+
+/* FIREBASE INITIALIZATION */
+let auth;
+let db;
+
+let currentUser = null;
 let currentRole = "";
+let records = [];
+let unsubscribeRecords = null;
+let isEntering = false;
 
-let records = JSON.parse(
-    localStorage.getItem("cctvRecords") || "[]"
-);
+const loginAccounts = {
+  ARS: "ars@cctvtracker.app",
+  COMOCANGGU: "comocanggu@cctvtracker.app"
+};
 
-// SAVE DATA
-function saveData() {
-    try {
-        localStorage.setItem("cctvRecords", JSON.stringify(records));
-        return true;
-    } catch (error) {
-        alert("Browser storage is full. Reduce the size or number of evidence files.");
-        return false;
-    }
+try {
+  const firebaseApp = initializeApp(firebaseConfig);
+  auth = getAuth(firebaseApp);
+  db = getFirestore(firebaseApp);
+
+  setConnectionStatus("Firebase connected", "online");
+
+} catch (error) {
+  console.error("Firebase initialization error:", error);
+
+  showLoginError("Could not initialize Firebase. Check the Firebase configuration.");
+
+  setConnectionStatus("Connection error", "offline");
 }
 
-// LOGIN
-document.getElementById("loginForm").addEventListener("submit", function(e) {
-    e.preventDefault();
+/* LOGIN ERROR */
+function showLoginError(message) {
+  loginError.textContent = message;
+}
 
-    const username = document.getElementById("username")
-        .value.trim().toUpperCase();
+/* CONNECTION STATUS */
+function setConnectionStatus(message, state = "") {
+  const element = document.getElementById("connectionStatus");
 
-    const password = document.getElementById("password").value;
+  if (!element) return;
 
-    if (users[username] && users[username].password === password) {
+  element.textContent = message;
+  element.className = `connection-status ${state}`;
+}
 
-        currentRole = users[username].role;
+/* ADMIN INTERFACE */
+function setAdminInterface() {
+  const isAdmin = currentRole === "admin";
 
-        document.getElementById("loginScreen").classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
+  document.getElementById("addButton")
+    .classList.toggle("hidden", !isAdmin);
 
-        document.getElementById("currentUser").innerText = username;
+  document.getElementById("actionHeader")
+    .classList.toggle("hidden", !isAdmin);
+}
 
-        if (currentRole === "viewer") {
-            document.getElementById("addButton").classList.add("hidden");
-            document.getElementById("actionHeader").classList.add("hidden");
-        }
+/* ENTER APPLICATION */
+async function enterApplication(user, username, role) {
+  if (isEntering) return;
 
-        renderTable();
-        updateStats();
+  isEntering = true;
 
-    } else {
-        document.getElementById("loginError").innerText =
-            "Incorrect username or password!";
+  currentUser = user;
+  currentRole = role;
+
+  document.getElementById("currentUser").textContent =
+    `${username} (${role})`;
+
+  loginScreen.classList.add("hidden");
+  appScreen.classList.remove("hidden");
+
+  setAdminInterface();
+  listenToRecords();
+
+  isEntering = false;
+}
+
+/* LOGIN */
+document.getElementById("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+
+  if (!auth || !db) {
+    showLoginError("Firebase is not connected. Check your configuration.");
+    return;
+  }
+
+  const username = document.getElementById("username")
+    .value.trim().toUpperCase();
+
+  const password = document.getElementById("password").value;
+  const email = loginAccounts[username];
+
+  if (!email) {
+    showLoginError("Incorrect username or password.");
+    return;
+  }
+
+  loginButton.disabled = true;
+  loginButton.textContent = "SIGNING IN...";
+
+  showLoginError("");
+
+  try {
+    const credential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const roleDoc = await getDoc(
+      doc(db, "users", credential.user.uid)
+    );
+
+    if (
+      !roleDoc.exists() ||
+      !["admin", "viewer"].includes(roleDoc.data().role)
+    ) {
+      await signOut(auth);
+
+      showLoginError(
+        "Your account role is not configured. Contact the administrator."
+      );
+
+      return;
     }
+
+    await enterApplication(
+      credential.user,
+      username,
+      roleDoc.data().role
+    );
+
+  } catch (error) {
+    console.error("Login error:", error);
+
+    showLoginError(
+      "Login failed. Check username, password, and Firebase setup."
+    );
+
+  } finally {
+    loginButton.disabled = false;
+    loginButton.textContent = "LOGIN";
+  }
 });
 
-// LOGOUT
-function logout() {
-    location.reload();
+/* RESTORE LOGIN SESSION */
+if (auth) {
+  onAuthStateChanged(auth, async user => {
+    if (!user || !db || currentUser) return;
+
+    try {
+      const roleDoc = await getDoc(
+        doc(db, "users", user.uid)
+      );
+
+      if (!roleDoc.exists()) {
+        await signOut(auth);
+        return;
+      }
+
+      const role = roleDoc.data().role;
+
+      const username =
+        user.email === loginAccounts.ARS
+          ? "ARS"
+          : user.email === loginAccounts.COMOCANGGU
+          ? "COMOCANGGU"
+          : "USER";
+
+      if (["admin", "viewer"].includes(role)) {
+        await enterApplication(user, username, role);
+      } else {
+        await signOut(auth);
+      }
+
+    } catch (error) {
+      console.error("Could not restore session:", error);
+
+      setConnectionStatus("Session error", "offline");
+    }
+  });
 }
 
-// RENDER TABLE
+/* LOGOUT */
+async function logout() {
+  if (unsubscribeRecords) {
+    unsubscribeRecords();
+  }
+
+  unsubscribeRecords = null;
+  records = [];
+  currentUser = null;
+  currentRole = "";
+
+  if (auth) {
+    await signOut(auth);
+  }
+
+  location.reload();
+}
+
+document.getElementById("logoutButton")
+  .addEventListener("click", logout);
+
+/* FIRESTORE REAL-TIME DATA */
+function listenToRecords() {
+  if (unsubscribeRecords) {
+    unsubscribeRecords();
+  }
+
+  setConnectionStatus("Connecting to records...", "");
+
+  unsubscribeRecords = onSnapshot(
+    collection(db, "cameras"),
+
+    snapshot => {
+      records = snapshot.docs.map(item => ({
+        id: item.id,
+        ...item.data()
+      }));
+
+      records.sort((a, b) => {
+        const aTime =
+          a.updatedAt?.seconds || a.createdAt?.seconds || 0;
+
+        const bTime =
+          b.updatedAt?.seconds || b.createdAt?.seconds || 0;
+
+        return bTime - aTime;
+      });
+
+      renderTable();
+      updateStats();
+
+      setConnectionStatus("Live sync active", "online");
+    },
+
+    error => {
+      console.error("Firestore listener error:", error);
+
+      setConnectionStatus("Sync error", "offline");
+
+      alert(
+        "Could not load cloud records. Check Firestore rules and internet connection."
+      );
+    }
+  );
+}
+
+/* HTML SECURITY */
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
+}
+
+/* RENDER CAMERA TABLE */
 function renderTable() {
+  const keyword = document.getElementById("search")
+    .value.toLowerCase();
 
-    const tbody = document.getElementById("cameraTable");
+  const filtered = records.filter(record =>
+    [
+      record.sn,
+      record.brand,
+      record.damage,
+      record.location,
+      record.status
+    ].some(value =>
+      String(value || "").toLowerCase().includes(keyword)
+    )
+  );
 
-    const keyword = document.getElementById("search")
-        .value.toLowerCase();
+  cameraTable.innerHTML = "";
 
-    const filtered = records.filter(r =>
-        [r.sn, r.brand, r.damage, r.location, r.status]
-        .some(v => String(v || "").toLowerCase().includes(keyword))
-    );
-
-    tbody.innerHTML = "";
-
-    filtered.forEach((r, index) => {
-
-        const evidenceLinks = (r.evidence || []).map((file, fileIndex) =>
-            `<button type="button" class="evidence-link"
-            onclick="viewEvidence('${r.id}', ${fileIndex})">View</button>`
-        ).join("<br>");
-
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-            <td>${index + 1}</td>
-            <td>${escapeHTML(r.sn)}</td>
-            <td>${escapeHTML(r.brand)}</td>
-            <td>${escapeHTML(r.damage)}</td>
-            <td>${r.claimDate || "-"}</td>
-            <td>${r.receivedDate || "-"}</td>
-            <td>${escapeHTML(r.receivedBy || "-")}</td>
-            <td>${escapeHTML(r.status)}</td>
-            <td>${escapeHTML(r.location || "-")}</td>
-            <td>${evidenceLinks || "-"}</td>
-
-            ${currentRole === "admin" ? `
-                <td>
-                    <button onclick="editCamera('${r.id}')">Edit</button>
-                    <button onclick="deleteCamera('${r.id}')">Delete</button>
-                </td>
-            ` : ""}
-        `;
-
-        tbody.appendChild(tr);
-    });
+  if (!filtered.length) {
+    cameraTable.innerHTML = `
+      <tr>
+        <td colspan="11" class="empty-state">
+          No camera records found.
+        </td>
+      </tr>
+    `;
 
     updateStats();
+    return;
+  }
+
+  filtered.forEach((record, index) => {
+    const row = document.createElement("tr");
+
+    const evidenceText = (record.evidence || []).length
+      ? escapeHTML(
+          (record.evidence || [])
+            .map(file => file.name || "Evidence")
+            .join(", ")
+        )
+      : "-";
+
+    row.innerHTML = `
+      <td>${index + 1}</td>
+      <td>${escapeHTML(record.sn)}</td>
+      <td>${escapeHTML(record.brand)}</td>
+      <td>${escapeHTML(record.damage)}</td>
+      <td>${escapeHTML(record.claimDate || "-")}</td>
+      <td>${escapeHTML(record.receivedDate || "-")}</td>
+      <td>${escapeHTML(record.receivedBy || "-")}</td>
+      <td>${escapeHTML(record.status || "-")}</td>
+      <td>${escapeHTML(record.location || "-")}</td>
+      <td>${evidenceText}</td>
+
+      ${currentRole === "admin" ? `
+        <td>
+          <button
+            type="button"
+            class="edit-button"
+            data-edit="${escapeHTML(record.id)}">
+            Edit
+          </button>
+
+          <button
+            type="button"
+            class="delete-button"
+            data-delete="${escapeHTML(record.id)}">
+            Delete
+          </button>
+        </td>
+      ` : ""}
+    `;
+
+    cameraTable.appendChild(row);
+  });
+
+  updateStats();
 }
 
-// ESCAPE HTML
-function escapeHTML(value) {
-    return String(value ?? "").replace(/[&<>"']/g, c => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    })[c]);
-}
+/* EDIT AND DELETE BUTTONS */
+cameraTable.addEventListener("click", event => {
+  const editButton = event.target.closest("[data-edit]");
+  const deleteButton = event.target.closest("[data-delete]");
 
-// UPDATE STATISTICS
+  if (editButton) {
+    editCamera(editButton.dataset.edit);
+  }
+
+  if (deleteButton) {
+    deleteCamera(deleteButton.dataset.delete);
+  }
+});
+
+/* SEARCH */
+document.getElementById("search")
+  .addEventListener("input", renderTable);
+
+/* DASHBOARD STATISTICS */
 function updateStats() {
+  document.getElementById("totalCamera").textContent =
+    records.length;
 
-    document.getElementById("totalCamera").innerText =
-        records.length;
+  document.getElementById("damagedCamera").textContent =
+    records.filter(record =>
+      record.status === "DAMAGED"
+    ).length;
 
-    document.getElementById("damagedCamera").innerText =
-        records.filter(r => r.status === "DAMAGED").length;
+  document.getElementById("claimCamera").textContent =
+    records.filter(record =>
+      record.status === "CLAIM WARRANTY"
+    ).length;
 
-    document.getElementById("claimCamera").innerText =
-        records.filter(r => r.status === "CLAIM WARRANTY").length;
-
-    document.getElementById("installedCamera").innerText =
-        records.filter(r => r.status === "INSTALLED").length;
+  document.getElementById("installedCamera").textContent =
+    records.filter(record =>
+      record.status === "INSTALLED"
+    ).length;
 }
 
-// OPEN FORM
+/* OPEN FORM */
 function openForm() {
+  if (currentRole !== "admin") return;
 
-    if (currentRole !== "admin") return;
+  document.getElementById("cameraForm").reset();
+  document.getElementById("editId").value = "";
+  document.getElementById("oldEvidence").innerHTML = "";
 
-    document.getElementById("cameraForm").reset();
+  document.getElementById("formTitle").textContent = "Add Camera";
 
-    document.getElementById("editId").value = "";
-
-    document.getElementById("oldEvidence").innerHTML = "";
-
-    document.getElementById("formTitle").innerText = "Add Camera";
-
-    document.getElementById("formModal").classList.remove("hidden");
+  formModal.classList.remove("hidden");
 }
 
-// CLOSE FORM
+/* CLOSE FORM */
 function closeForm() {
-    document.getElementById("formModal").classList.add("hidden");
+  formModal.classList.add("hidden");
+
+  document.getElementById("cameraForm").reset();
 }
 
-// READ UPLOADED FILE
-function readFile(file) {
+document.getElementById("addButton")
+  .addEventListener("click", openForm);
 
-    return new Promise((resolve, reject) => {
+document.getElementById("cancelFormButton")
+  .addEventListener("click", closeForm);
 
-        const reader = new FileReader();
+/* SAVE CAMERA RECORD */
+document.getElementById("cameraForm")
+  .addEventListener("submit", async event => {
 
-        reader.onload = () => resolve({
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            data: reader.result
-        });
+  event.preventDefault();
 
-        reader.onerror = reject;
+  if (currentRole !== "admin" || !currentUser) return;
 
-        reader.readAsDataURL(file);
-    });
-}
+  const saveButton = document.getElementById("saveButton");
 
-// SAVE RECORD
-document.getElementById("cameraForm").addEventListener("submit", async function(e) {
+  saveButton.disabled = true;
+  saveButton.textContent = "SAVING...";
 
-    e.preventDefault();
+  try {
+    const editId = document.getElementById("editId").value;
 
-    if (currentRole !== "admin") return;
-
-    const id = document.getElementById("editId").value;
-
-    const existing = records.find(r => r.id === id);
-
-    const files = Array.from(
-        document.getElementById("evidence").files
+    const existing = records.find(
+      record => record.id === editId
     );
 
-    const evidence = existing
-        ? [...(existing.evidence || [])]
-        : [];
+    const recordRef = editId
+      ? doc(db, "cameras", editId)
+      : doc(collection(db, "cameras"));
 
-    for (const file of files) {
+    const recordData = {
+      sn: document.getElementById("sn").value.trim(),
 
-        if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) {
-            alert("Files must be JPG, PNG, or PDF.");
-            return;
-        }
+      brand: document.getElementById("brand")
+        .value.trim(),
 
-        if (file.size > 2 * 1024 * 1024) {
-            alert("Maximum file size is 2 MB per file.");
-            return;
-        }
+      damage: document.getElementById("damage")
+        .value.trim(),
 
-        evidence.push(await readFile(file));
-    }
+      claimDate: document.getElementById("claimDate").value,
 
-    const data = {
-        id: id || Date.now().toString(),
+      receivedDate: document.getElementById("receivedDate").value,
 
-        sn: document.getElementById("sn").value.trim(),
+      receivedBy: document.getElementById("receivedBy")
+        .value.trim(),
 
-        brand: document.getElementById("brand").value.trim(),
+      status: document.getElementById("status").value,
 
-        damage: document.getElementById("damage").value.trim(),
+      location: document.getElementById("location")
+        .value.trim(),
 
-        claimDate: document.getElementById("claimDate").value,
+      evidence: existing?.evidence || [],
 
-        receivedDate: document.getElementById("receivedDate").value,
+      createdAt: existing?.createdAt || serverTimestamp(),
 
-        receivedBy: document.getElementById("receivedBy").value.trim(),
+      updatedAt: serverTimestamp(),
 
-        status: document.getElementById("status").value,
-
-        location: document.getElementById("location").value.trim(),
-
-        evidence: evidence
+      updatedBy: currentUser.uid
     };
 
-    if (existing) {
-        records = records.map(r => r.id === id ? data : r);
-    } else {
-        records.push(data);
-    }
-
-    if (!saveData()) return;
+    await setDoc(recordRef, recordData);
 
     closeForm();
 
-    renderTable();
+    alert("Record saved and synchronized to the cloud.");
 
-    alert("Record saved successfully!");
+  } catch (error) {
+    console.error("Save error:", error);
+
+    alert(
+      error.message ||
+      "Could not save the record. Check Firestore rules."
+    );
+
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = "Save Record";
+  }
 });
 
-// EDIT CAMERA
+/* EDIT CAMERA */
 function editCamera(id) {
+  if (currentRole !== "admin") return;
 
-    if (currentRole !== "admin") return;
+  const record = records.find(item => item.id === id);
 
-    const r = records.find(x => x.id === id);
+  if (!record) return;
 
-    if (!r) return;
+  openForm();
 
-    openForm();
+  document.getElementById("formTitle").textContent =
+    "Edit Camera";
 
-    document.getElementById("formTitle").innerText = "Edit Camera";
+  document.getElementById("editId").value = record.id;
 
-    document.getElementById("editId").value = r.id;
+  document.getElementById("sn").value =
+    record.sn || "";
 
-    document.getElementById("sn").value = r.sn;
+  document.getElementById("brand").value =
+    record.brand || "";
 
-    document.getElementById("brand").value = r.brand;
+  document.getElementById("damage").value =
+    record.damage || "";
 
-    document.getElementById("damage").value = r.damage;
+  document.getElementById("claimDate").value =
+    record.claimDate || "";
 
-    document.getElementById("claimDate").value = r.claimDate;
+  document.getElementById("receivedDate").value =
+    record.receivedDate || "";
 
-    document.getElementById("receivedDate").value = r.receivedDate;
+  document.getElementById("receivedBy").value =
+    record.receivedBy || "";
 
-    document.getElementById("receivedBy").value = r.receivedBy;
+  document.getElementById("status").value =
+    record.status || "DAMAGED";
 
-    document.getElementById("status").value = r.status;
+  document.getElementById("location").value =
+    record.location || "";
 
-    document.getElementById("location").value = r.location;
+  const oldEvidence =
+    document.getElementById("oldEvidence");
 
-    document.getElementById("oldEvidence").innerHTML =
-        (r.evidence || []).map(f => `<p>${escapeHTML(f.name)}</p>`).join("");
+  if (record.evidence?.length) {
+    const title = document.createElement("p");
+
+    title.className = "muted small";
+    title.textContent =
+      "Previously attached evidence (not editable here):";
+
+    oldEvidence.appendChild(title);
+
+    record.evidence.forEach(file => {
+      const item = document.createElement("p");
+
+      item.textContent = file.name || "Evidence";
+
+      oldEvidence.appendChild(item);
+    });
+  }
 }
 
-// DELETE CAMERA
-function deleteCamera(id) {
+/* DELETE CAMERA */
+async function deleteCamera(id) {
+  if (currentRole !== "admin") return;
 
-    if (currentRole !== "admin") return;
+  const record = records.find(item => item.id === id);
 
-    if (!confirm("Are you sure you want to delete this record?")) return;
+  if (
+    !record ||
+    !confirm("Are you sure you want to delete this camera record?")
+  ) {
+    return;
+  }
 
-    records = records.filter(r => r.id !== id);
+  try {
+    await deleteDoc(doc(db, "cameras", id));
 
-    if (!saveData()) return;
+    alert("Record deleted from the cloud.");
 
-    renderTable();
+  } catch (error) {
+    console.error("Delete error:", error);
 
-    alert("Record deleted successfully!");
+    alert(
+      "Could not delete this record. Check Firestore security rules."
+    );
+  }
 }
-
-// PREVIEW EVIDENCE
-function viewEvidence(recordId, fileIndex) {
-
-    const record = records.find(r => r.id === recordId);
-
-    const file = record && (record.evidence || [])[fileIndex];
-
-    if (!file) return;
-
-    const modal = document.getElementById("evidenceModal");
-
-    const image = document.getElementById("evidenceImagePreview");
-
-    const pdf = document.getElementById("evidencePdfPreview");
-
-    document.getElementById("evidencePreviewTitle").innerText =
-        file.name || "Evidence Preview";
-
-    image.classList.add("hidden");
-
-    pdf.classList.add("hidden");
-
-    image.removeAttribute("src");
-
-    pdf.removeAttribute("src");
-
-    if (file.type === "application/pdf") {
-
-        pdf.src = file.data;
-
-        pdf.classList.remove("hidden");
-
-    } else if (file.type && file.type.startsWith("image/")) {
-
-        image.src = file.data;
-
-        image.classList.remove("hidden");
-
-    } else {
-
-        alert("This file type cannot be previewed.");
-
-        return;
-    }
-
-    modal.classList.remove("hidden");
-}
-
-// CLOSE EVIDENCE PREVIEW
-function closeEvidencePreview(event) {
-
-    const modal = document.getElementById("evidenceModal");
-
-    if (event && event.target !== modal) return;
-
-    modal.classList.add("hidden");
-
-    document.getElementById("evidenceImagePreview").removeAttribute("src");
-
-    document.getElementById("evidencePdfPreview").removeAttribute("src");
-}
-
 </script>
 
 </body>
