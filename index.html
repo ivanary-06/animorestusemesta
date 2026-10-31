@@ -1,0 +1,562 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV Maintenance & Warranty Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+    <div class="login-box">
+        <h1>CCTV MAINTENANCE</h1>
+        <p>Maintenance & Warranty Tracker</p>
+
+        <form id="loginForm">
+            <input type="text" id="username" placeholder="Username" required>
+            <input type="password" id="password" placeholder="Password" required>
+            <button type="submit">LOGIN</button>
+            <p id="loginError"></p>
+        </form>
+    </div>
+</div>
+
+<!-- MAIN APPLICATION -->
+<div id="app" class="hidden">
+    <header>
+        <h2>CCTV MAINTENANCE & WARRANTY TRACKER</h2>
+        <div>
+            <span id="currentUser"></span>
+            <button onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <main>
+        <h2>Dashboard</h2>
+
+        <div class="stats">
+            <div class="stat-card">
+                <span>Total Camera</span>
+                <h2 id="totalCamera">0</h2>
+            </div>
+
+            <div class="stat-card">
+                <span>Damaged</span>
+                <h2 id="damagedCamera">0</h2>
+            </div>
+
+            <div class="stat-card">
+                <span>Warranty Claim</span>
+                <h2 id="claimCamera">0</h2>
+            </div>
+
+            <div class="stat-card">
+                <span>Installed</span>
+                <h2 id="installedCamera">0</h2>
+            </div>
+        </div>
+
+        <section class="panel">
+            <div class="toolbar">
+                <h3>Camera Records</h3>
+                <button id="addButton" onclick="openForm()">+ Add Camera</button>
+            </div>
+
+            <input
+                type="text"
+                id="search"
+                placeholder="Search serial number, brand, damage..."
+                oninput="renderTable()"
+            >
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>SN</th>
+                            <th>Brand</th>
+                            <th>Damage</th>
+                            <th>Warranty Claim Date</th>
+                            <th>Return Received Date</th>
+                            <th>Received By</th>
+                            <th>Camera Status</th>
+                            <th>Installed At</th>
+                            <th>Evidence</th>
+                            <th id="actionHeader">Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="cameraTable"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+
+<!-- ADD / EDIT FORM -->
+<div id="formModal" class="modal hidden">
+    <div class="modal-content">
+        <h2 id="formTitle">Add Camera</h2>
+
+        <form id="cameraForm">
+            <input type="hidden" id="editId">
+
+            <label>Serial Number</label>
+            <input id="sn" required>
+
+            <label>Brand</label>
+            <input id="brand" required>
+
+            <label>Damage</label>
+            <textarea id="damage" required></textarea>
+
+            <label>Warranty Claim Date</label>
+            <input type="date" id="claimDate">
+
+            <label>Return Received Date</label>
+            <input type="date" id="receivedDate">
+
+            <label>Received By</label>
+            <input id="receivedBy">
+
+            <label>Camera Status</label>
+            <select id="status">
+                <option>DAMAGED</option>
+                <option>CLAIM WARRANTY</option>
+                <option>WAITING FOR REPLACEMENT</option>
+                <option>RECEIVED</option>
+                <option>READY TO INSTALL</option>
+                <option>INSTALLED</option>
+                <option>NOT INSTALLED</option>
+            </select>
+
+            <label>Installed At</label>
+            <input id="location" placeholder="Example: Villa 17">
+
+            <label>Upload Evidence</label>
+            <input
+                type="file"
+                id="evidence"
+                accept=".jpg,.jpeg,.png,.pdf"
+                multiple
+            >
+
+            <div id="oldEvidence"></div>
+
+            <div class="form-buttons">
+                <button type="button" onclick="closeForm()" class="cancel">
+                    Cancel
+                </button>
+                <button type="submit">Save Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- EVIDENCE PREVIEW -->
+<div id="evidenceModal" class="modal hidden" onclick="closeEvidencePreview(event)">
+    <div class="modal-content evidence-preview-content">
+
+        <div class="evidence-preview-header">
+            <h2 id="evidencePreviewTitle">Evidence Preview</h2>
+            <button
+                type="button"
+                class="preview-close"
+                onclick="closeEvidencePreview()"
+            >&times;</button>
+        </div>
+
+        <img
+            id="evidenceImagePreview"
+            class="evidence-image-preview hidden"
+            alt="Evidence preview"
+        >
+
+        <iframe
+            id="evidencePdfPreview"
+            class="evidence-pdf-preview hidden"
+            title="PDF evidence preview"
+        ></iframe>
+
+    </div>
+</div>
+
+<script>
+
+// USER ACCOUNTS
+const users = {
+    ARS: {
+        password: "4rsit@2025",
+        role: "admin"
+    },
+
+    COMOCANGGU: {
+        password: "comostaff",
+        role: "viewer"
+    }
+};
+
+let currentRole = "";
+
+let records = JSON.parse(
+    localStorage.getItem("cctvRecords") || "[]"
+);
+
+// SAVE DATA
+function saveData() {
+    try {
+        localStorage.setItem("cctvRecords", JSON.stringify(records));
+        return true;
+    } catch (error) {
+        alert("Browser storage is full. Reduce the size or number of evidence files.");
+        return false;
+    }
+}
+
+// LOGIN
+document.getElementById("loginForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const username = document.getElementById("username")
+        .value.trim().toUpperCase();
+
+    const password = document.getElementById("password").value;
+
+    if (users[username] && users[username].password === password) {
+
+        currentRole = users[username].role;
+
+        document.getElementById("loginScreen").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+
+        document.getElementById("currentUser").innerText = username;
+
+        if (currentRole === "viewer") {
+            document.getElementById("addButton").classList.add("hidden");
+            document.getElementById("actionHeader").classList.add("hidden");
+        }
+
+        renderTable();
+        updateStats();
+
+    } else {
+        document.getElementById("loginError").innerText =
+            "Incorrect username or password!";
+    }
+});
+
+// LOGOUT
+function logout() {
+    location.reload();
+}
+
+// RENDER TABLE
+function renderTable() {
+
+    const tbody = document.getElementById("cameraTable");
+
+    const keyword = document.getElementById("search")
+        .value.toLowerCase();
+
+    const filtered = records.filter(r =>
+        [r.sn, r.brand, r.damage, r.location, r.status]
+        .some(v => String(v || "").toLowerCase().includes(keyword))
+    );
+
+    tbody.innerHTML = "";
+
+    filtered.forEach((r, index) => {
+
+        const evidenceLinks = (r.evidence || []).map((file, fileIndex) =>
+            `<button type="button" class="evidence-link"
+            onclick="viewEvidence('${r.id}', ${fileIndex})">View</button>`
+        ).join("<br>");
+
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${escapeHTML(r.sn)}</td>
+            <td>${escapeHTML(r.brand)}</td>
+            <td>${escapeHTML(r.damage)}</td>
+            <td>${r.claimDate || "-"}</td>
+            <td>${r.receivedDate || "-"}</td>
+            <td>${escapeHTML(r.receivedBy || "-")}</td>
+            <td>${escapeHTML(r.status)}</td>
+            <td>${escapeHTML(r.location || "-")}</td>
+            <td>${evidenceLinks || "-"}</td>
+
+            ${currentRole === "admin" ? `
+                <td>
+                    <button onclick="editCamera('${r.id}')">Edit</button>
+                    <button onclick="deleteCamera('${r.id}')">Delete</button>
+                </td>
+            ` : ""}
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    updateStats();
+}
+
+// ESCAPE HTML
+function escapeHTML(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+    })[c]);
+}
+
+// UPDATE STATISTICS
+function updateStats() {
+
+    document.getElementById("totalCamera").innerText =
+        records.length;
+
+    document.getElementById("damagedCamera").innerText =
+        records.filter(r => r.status === "DAMAGED").length;
+
+    document.getElementById("claimCamera").innerText =
+        records.filter(r => r.status === "CLAIM WARRANTY").length;
+
+    document.getElementById("installedCamera").innerText =
+        records.filter(r => r.status === "INSTALLED").length;
+}
+
+// OPEN FORM
+function openForm() {
+
+    if (currentRole !== "admin") return;
+
+    document.getElementById("cameraForm").reset();
+
+    document.getElementById("editId").value = "";
+
+    document.getElementById("oldEvidence").innerHTML = "";
+
+    document.getElementById("formTitle").innerText = "Add Camera";
+
+    document.getElementById("formModal").classList.remove("hidden");
+}
+
+// CLOSE FORM
+function closeForm() {
+    document.getElementById("formModal").classList.add("hidden");
+}
+
+// READ UPLOADED FILE
+function readFile(file) {
+
+    return new Promise((resolve, reject) => {
+
+        const reader = new FileReader();
+
+        reader.onload = () => resolve({
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: reader.result
+        });
+
+        reader.onerror = reject;
+
+        reader.readAsDataURL(file);
+    });
+}
+
+// SAVE RECORD
+document.getElementById("cameraForm").addEventListener("submit", async function(e) {
+
+    e.preventDefault();
+
+    if (currentRole !== "admin") return;
+
+    const id = document.getElementById("editId").value;
+
+    const existing = records.find(r => r.id === id);
+
+    const files = Array.from(
+        document.getElementById("evidence").files
+    );
+
+    const evidence = existing
+        ? [...(existing.evidence || [])]
+        : [];
+
+    for (const file of files) {
+
+        if (!["image/jpeg", "image/png", "application/pdf"].includes(file.type)) {
+            alert("Files must be JPG, PNG, or PDF.");
+            return;
+        }
+
+        if (file.size > 2 * 1024 * 1024) {
+            alert("Maximum file size is 2 MB per file.");
+            return;
+        }
+
+        evidence.push(await readFile(file));
+    }
+
+    const data = {
+        id: id || Date.now().toString(),
+
+        sn: document.getElementById("sn").value.trim(),
+
+        brand: document.getElementById("brand").value.trim(),
+
+        damage: document.getElementById("damage").value.trim(),
+
+        claimDate: document.getElementById("claimDate").value,
+
+        receivedDate: document.getElementById("receivedDate").value,
+
+        receivedBy: document.getElementById("receivedBy").value.trim(),
+
+        status: document.getElementById("status").value,
+
+        location: document.getElementById("location").value.trim(),
+
+        evidence: evidence
+    };
+
+    if (existing) {
+        records = records.map(r => r.id === id ? data : r);
+    } else {
+        records.push(data);
+    }
+
+    if (!saveData()) return;
+
+    closeForm();
+
+    renderTable();
+
+    alert("Record saved successfully!");
+});
+
+// EDIT CAMERA
+function editCamera(id) {
+
+    if (currentRole !== "admin") return;
+
+    const r = records.find(x => x.id === id);
+
+    if (!r) return;
+
+    openForm();
+
+    document.getElementById("formTitle").innerText = "Edit Camera";
+
+    document.getElementById("editId").value = r.id;
+
+    document.getElementById("sn").value = r.sn;
+
+    document.getElementById("brand").value = r.brand;
+
+    document.getElementById("damage").value = r.damage;
+
+    document.getElementById("claimDate").value = r.claimDate;
+
+    document.getElementById("receivedDate").value = r.receivedDate;
+
+    document.getElementById("receivedBy").value = r.receivedBy;
+
+    document.getElementById("status").value = r.status;
+
+    document.getElementById("location").value = r.location;
+
+    document.getElementById("oldEvidence").innerHTML =
+        (r.evidence || []).map(f => `<p>${escapeHTML(f.name)}</p>`).join("");
+}
+
+// DELETE CAMERA
+function deleteCamera(id) {
+
+    if (currentRole !== "admin") return;
+
+    if (!confirm("Are you sure you want to delete this record?")) return;
+
+    records = records.filter(r => r.id !== id);
+
+    if (!saveData()) return;
+
+    renderTable();
+
+    alert("Record deleted successfully!");
+}
+
+// PREVIEW EVIDENCE
+function viewEvidence(recordId, fileIndex) {
+
+    const record = records.find(r => r.id === recordId);
+
+    const file = record && (record.evidence || [])[fileIndex];
+
+    if (!file) return;
+
+    const modal = document.getElementById("evidenceModal");
+
+    const image = document.getElementById("evidenceImagePreview");
+
+    const pdf = document.getElementById("evidencePdfPreview");
+
+    document.getElementById("evidencePreviewTitle").innerText =
+        file.name || "Evidence Preview";
+
+    image.classList.add("hidden");
+
+    pdf.classList.add("hidden");
+
+    image.removeAttribute("src");
+
+    pdf.removeAttribute("src");
+
+    if (file.type === "application/pdf") {
+
+        pdf.src = file.data;
+
+        pdf.classList.remove("hidden");
+
+    } else if (file.type && file.type.startsWith("image/")) {
+
+        image.src = file.data;
+
+        image.classList.remove("hidden");
+
+    } else {
+
+        alert("This file type cannot be previewed.");
+
+        return;
+    }
+
+    modal.classList.remove("hidden");
+}
+
+// CLOSE EVIDENCE PREVIEW
+function closeEvidencePreview(event) {
+
+    const modal = document.getElementById("evidenceModal");
+
+    if (event && event.target !== modal) return;
+
+    modal.classList.add("hidden");
+
+    document.getElementById("evidenceImagePreview").removeAttribute("src");
+
+    document.getElementById("evidencePdfPreview").removeAttribute("src");
+}
+
+</script>
+
+</body>
+</html>
